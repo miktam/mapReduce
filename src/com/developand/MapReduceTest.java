@@ -27,11 +27,12 @@ public class MapReduceTest {
 	}
 
 	@Test
+	//@Ignore
 	public void testSimpleSorting() {
 		long c = stat();
 		Map<String, Integer> map = mr.simpleWordCounting();
 		System.out.println("s, ms:" + stat(c));
-		mr.displayMap(mr.sortMap(map), 3);
+		//mr.displayMap(mr.sortMap(map), 3);
 	}
 
 	@Test
@@ -40,7 +41,7 @@ public class MapReduceTest {
 		long c = stat();
 		Map<String, Integer> map = mr.mapReduce();
 		System.out.println("m, ms:" + stat(c));
-		mr.displayMap(mr.sortMap(map), 3);
+		//mr.displayMap(mr.sortMap(map), 3);
 	}
 
 	private long stat() {
@@ -54,7 +55,7 @@ public class MapReduceTest {
 	@Parameterized.Parameters
 	public static List<Object[]> data() {
 		// first parameter - times run
-		return Arrays.asList(new Object[1][0]);
+		return Arrays.asList(new Object[10][0]);
 	}
 
 	public MapReduceTest() {

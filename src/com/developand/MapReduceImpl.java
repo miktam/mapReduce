@@ -18,29 +18,37 @@ import org.apache.log4j.Logger;
 public class MapReduceImpl implements MapReduce {
 
 	String slurpedFile = new String();
-	private final int BUCKET_SIZE = 16;
-	
+	private final int BUCKETS = 4;
+
 	private final Logger log = Logger.getLogger(MapReduceImpl.class);
 
 	// no multimaps so create so weird construction
-	List<Map.Entry<String, Integer>> intermediateMap = new ArrayList<Map.Entry<String, Integer>>();
+	List<Map.Entry<String, Integer>> intermediateMap = null;
 
 	@Override
 	public Map<String, Integer> mapReduce() {
 
-		// map phase
-		int mapsize = 0;
-		List<Object[]> buckets = divideIntoBuckets(slurpedFile, BUCKET_SIZE);
-		for (Object[] bucket : buckets) {
-			List<Map.Entry<String, Integer>> map = createIntermidiateMap(bucket);
-			mapsize += map.size();
-			
-			synchronized (intermediateMap) {
-				intermediateMap.addAll(map);
-			}
+		intermediateMap = new ArrayList<Map.Entry<String, Integer>>();
+
+		List<Object[]> buckets = divideIntoBuckets(slurpedFile, BUCKETS);
+		for (final Object[] bucket : buckets) {
+
+			Runnable run = new Runnable() {
+
+				@Override
+				public void run() {
+					List<Map.Entry<String, Integer>> map = createIntermidiateMap(bucket);
+
+					synchronized (intermediateMap) {
+						intermediateMap.addAll(map);
+					}
+
+				}
+			};
+
 		}
-		
-		//log.info("size of map as sum of buckets: " + mapsize);
+
+		// log.info("size of map as sum of buckets: " + mapsize);
 
 		// reduce phase
 		Map<String, Integer> result = reduce(intermediateMap);
@@ -51,7 +59,8 @@ public class MapReduceImpl implements MapReduce {
 			Object[] tokens) {
 		List<Entry<String, Integer>> map = new ArrayList<Map.Entry<String, Integer>>();
 		for (Object token : tokens) {
-			map.add(new AbstractMap.SimpleEntry<String, Integer>(token.toString(), 1));
+			map.add(new AbstractMap.SimpleEntry<String, Integer>(token
+					.toString(), 1));
 		}
 
 		return map;
@@ -92,13 +101,12 @@ public class MapReduceImpl implements MapReduce {
 
 		List<Object[]> list = new ArrayList<Object[]>();
 
-		
 		int subTokenPosition = 0;
-		
+
 		List<String> subTokenList = new ArrayList<String>();
 
 		for (int i = 0; i < tokens.length; i++) {
-			
+
 			if (subTokenPosition < chunk) {
 				subTokenList.add(tokens[i]);
 				subTokenPosition++;
@@ -107,7 +115,7 @@ public class MapReduceImpl implements MapReduce {
 				subTokenPosition = 0;
 				list.add(subTokenList.toArray());
 				subTokenList = new ArrayList<String>();
-				
+
 				// rewind i
 				i--;
 			}
@@ -128,7 +136,7 @@ public class MapReduceImpl implements MapReduce {
 	public Map<String, Integer> simpleWordCounting() {
 
 		String[] tokens = slurpedFile.split(" ");
-		log.info("all tokens: " + tokens.length);
+		// log.info("all tokens: " + tokens.length);
 		Map<String, Integer> wordOccurence = new HashMap<String, Integer>();
 
 		for (String token : tokens) {
@@ -175,9 +183,10 @@ public class MapReduceImpl implements MapReduce {
 
 	@Override
 	public void readFile(String pathToFile) {
-		
+
 		BasicConfigurator.configure();
 		try {
+			log.info("read file:" + pathToFile);
 			File file = new File(pathToFile);
 
 			Scanner scan = new Scanner(file);
@@ -191,7 +200,7 @@ public class MapReduceImpl implements MapReduce {
 			}
 
 			slurpedFile = buf.toString();
-			System.out.println("read " + pathToFile);
+			log.info("file succesfully read");
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -221,5 +230,4 @@ public class MapReduceImpl implements MapReduce {
 				log.info(pair.getKey() + " -> " + pair.getValue());
 		}
 	}
-
 }
