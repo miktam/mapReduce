@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
@@ -18,37 +20,36 @@ import org.apache.log4j.Logger;
 public class MapReduceImpl implements MapReduce {
 
 	String slurpedFile = new String();
+
 	private final int BUCKETS = 4;
+	ExecutorService executor = Executors.newFixedThreadPool(100);
 
 	private final Logger log = Logger.getLogger(MapReduceImpl.class);
 
 	// no multimaps so create so weird construction
 	List<Map.Entry<String, Integer>> intermediateMap = null;
 
+	Map<String, Integer> intermidiateResult = null;
+
 	@Override
 	public Map<String, Integer> mapReduce() {
 
 		intermediateMap = new ArrayList<Map.Entry<String, Integer>>();
 
-		List<Object[]> buckets = divideIntoBuckets(slurpedFile, BUCKETS);
-		for (final Object[] bucket : buckets) {
+		List<Object[]> buckets = divideIntoBuckets(slurpedFile, BUCKETS - 1);
 
-			Runnable run = new Runnable() {
+		for (final Object[] bucket : buckets)
+			executor.execute(new Mapper(bucket));
 
-				@Override
-				public void run() {
-					List<Map.Entry<String, Integer>> map = createIntermidiateMap(bucket);
-
-					synchronized (intermediateMap) {
-						intermediateMap.addAll(map);
-					}
-
-				}
-			};
-
+		executor.shutdown();
+		// try {
+		// executor.awaitTermination(10, TimeUnit.SECONDS);
+		// } catch (InterruptedException e) {
+		//
+		// log.error("just eat it");
+		// }
+		while (!executor.isTerminated()) {
 		}
-
-		// log.info("size of map as sum of buckets: " + mapsize);
 
 		// reduce phase
 		Map<String, Integer> result = reduce(intermediateMap);
@@ -67,6 +68,7 @@ public class MapReduceImpl implements MapReduce {
 	}
 
 	private Map<String, Integer> reduce(List<Map.Entry<String, Integer>> list) {
+		log.info("start reduce");
 		Map<String, Integer> output = new HashMap<String, Integer>();
 		for (Map.Entry<String, Integer> pair : list) {
 			if (output.containsKey(pair.getKey())) {
@@ -77,6 +79,8 @@ public class MapReduceImpl implements MapReduce {
 				output.put(pair.getKey(), 1);
 			}
 		}
+
+		log.info("finish reduce");
 		return output;
 	}
 
@@ -88,6 +92,8 @@ public class MapReduceImpl implements MapReduce {
 	 * @return
 	 */
 	private List<Object[]> divideIntoBuckets(String toDivide, int bucketSize) {
+
+		log.info("start bucketing");
 
 		String[] tokens = toDivide.split(" ");
 
@@ -128,6 +134,8 @@ public class MapReduceImpl implements MapReduce {
 		}
 
 		list.add(subTokensRest);
+
+		log.info("finish bucketing");
 
 		return list;
 	}
@@ -224,10 +232,31 @@ public class MapReduceImpl implements MapReduce {
 	@Override
 	public void displayMap(Map<String, Integer> map, int values) {
 
-		log.trace("---\n display map of size: " + map.size());
+		log.info("---\n display map of size: " + map.size());
 		for (Map.Entry<String, Integer> pair : map.entrySet()) {
 			if (values-- > 0)
 				log.info(pair.getKey() + " -> " + pair.getValue());
 		}
 	}
+
+	class Mapper implements Runnable {
+
+		private Object[] bucket;
+
+		Mapper(Object[] bucket) {
+			this.bucket = bucket;
+		}
+
+		@Override
+		public void run() {
+
+			log.info("start " + bucket[0]);
+			List<Map.Entry<String, Integer>> map = createIntermidiateMap(bucket);
+			synchronized (intermediateMap) {
+				intermediateMap.addAll(map);
+			}
+
+			log.info("finished " + bucket[0] + "\n");
+		}
+	};
 }

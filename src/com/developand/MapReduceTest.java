@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -17,9 +19,12 @@ public class MapReduceTest {
 	final static String FILE_TO_READ_HUGE = "D:\\sandbox\\mapReduce\\cia_fact_book.txt";
 	final static String FILE_TO_READ_SMALLER = "D:\\sandbox\\mapReduce\\noteBooksOfDaVinci.txt";
 	final static String FILE_TO_READ_REALLY_SMALL = "D:\\sandbox\\mapReduce\\small.txt";
+	
+	
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
+		Logger.getRootLogger().setLevel(Level.ERROR);
 		mr = new MapReduceImpl();
 		//mr.readFile(FILE_TO_READ_REALLY_SMALL);
 		mr.readFile(FILE_TO_READ_HUGE);
@@ -27,7 +32,6 @@ public class MapReduceTest {
 	}
 
 	@Test
-	//@Ignore
 	public void testSimpleSorting() {
 		long c = stat();
 		Map<String, Integer> map = mr.simpleWordCounting();
@@ -55,7 +59,7 @@ public class MapReduceTest {
 	@Parameterized.Parameters
 	public static List<Object[]> data() {
 		// first parameter - times run
-		return Arrays.asList(new Object[10][0]);
+		return Arrays.asList(new Object[1][0]);
 	}
 
 	public MapReduceTest() {
