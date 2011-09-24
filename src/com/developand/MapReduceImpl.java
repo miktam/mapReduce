@@ -14,20 +14,19 @@ import java.util.TreeMap;
 public class MapReduceImpl implements MapReduce {
 
 	String slurpedFile = new String();
-	final String FILE_TO_READ = "D:\\sandbox\\mapReduce\\brandesGeorge.txt";
-	final String FILE_TO_READ_HUGE = "D:\\sandbox\\mapReduce\\bible.txt";
-	Map<String, Integer> wordOccurence = new HashMap<String, Integer>();
-	List<Map.Entry<String, Integer>> intermediateMap = new ArrayList<Map.Entry<String, Integer>>();
+
+	List<Map.Entry<String, Integer>> intermediateMap = null;
 
 	@Override
 	public Map<String, Integer> mapReduce() {
-		map(getContent());
+		map(slurpedFile);
 		Map<String, Integer> result = reduce(intermediateMap);
 		return result;
 	}
 
 	private void map(String from) {
 		String[] tokens = from.split(" ");
+		intermediateMap = new ArrayList<Map.Entry<String, Integer>>();
 		for (String token : tokens) {
 			intermediateMap.add(new AbstractMap.SimpleEntry<String, Integer>(
 					token, 1));
@@ -52,7 +51,8 @@ public class MapReduceImpl implements MapReduce {
 	@Override
 	public Map<String, Integer> simpleWordCounting() {
 
-		String[] tokens = getContent().split(" ");
+		String[] tokens = slurpedFile.split(" ");
+		Map<String, Integer> wordOccurence = new HashMap<String, Integer>();
 
 		for (String token : tokens) {
 			if (wordOccurence.containsKey(token)) {
@@ -88,18 +88,18 @@ public class MapReduceImpl implements MapReduce {
 	}
 
 	@Override
-	public void sortMap(Map<String, Integer> mapToSort) {
+	public Map<String, Integer> sortMap(Map<String, Integer> mapToSort) {
 		// sort descending by values
 		Map<String, Integer> sortedMap = new TreeMap<String, Integer>(
 				new MapByValueComparator(mapToSort));
 		sortedMap.putAll(mapToSort);
-		displayMap(sortedMap);
+		return sortedMap;
 	}
 
 	@Override
-	public void readFile() {
+	public void readFile(String pathToFile) {
 		try {
-			File file = new File(FILE_TO_READ_HUGE);
+			File file = new File(pathToFile);
 
 			Scanner scan = new Scanner(file);
 			StringBuffer buf = new StringBuffer();
@@ -112,16 +112,12 @@ public class MapReduceImpl implements MapReduce {
 			}
 
 			slurpedFile = buf.toString();
+			System.out.println("read " + pathToFile);
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-	}
-
-	@Override
-	public String getContent() {
-		return slurpedFile;
 	}
 
 	private String sanitizeString(String input) {
@@ -137,9 +133,12 @@ public class MapReduceImpl implements MapReduce {
 		return buf.toString().toLowerCase();
 	}
 
-	private void displayMap(Map<String, Integer> map) {
+	@Override
+	public void displayMap(Map<String, Integer> map, int values) {
+
 		for (Map.Entry<String, Integer> pair : map.entrySet()) {
-			System.out.println(pair.getKey() + " -> " + pair.getValue());
+			if (values-- > 0)
+				System.out.println(pair.getKey() + " -> " + pair.getValue());
 		}
 
 		System.out.println("size of map:" + map.size());

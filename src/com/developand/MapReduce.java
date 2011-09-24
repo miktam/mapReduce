@@ -4,12 +4,12 @@ import java.util.Map;
 
 public interface MapReduce {
 	
-	void readFile();
 	Map<String, Integer> mapReduce();
-	String getContent();
 	
 	Map<String, Integer>  simpleWordCounting();
 	
-	void sortMap(Map<String, Integer> mapToSort);
+	Map<String, Integer> sortMap(Map<String, Integer> mapToSort);
+	void readFile(String pathToFile);
+	void displayMap(Map<String, Integer> contedMap, int values);
 
 }
