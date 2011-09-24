@@ -16,12 +16,13 @@ public class MapReduceTest {
 	static MapReduce mr = null;
 	final static String FILE_TO_READ_HUGE = "D:\\sandbox\\mapReduce\\cia_fact_book.txt";
 	final static String FILE_TO_READ_SMALLER = "D:\\sandbox\\mapReduce\\noteBooksOfDaVinci.txt";
+	final static String FILE_TO_READ_REALLY_SMALL = "D:\\sandbox\\mapReduce\\small.txt";
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
 		mr = new MapReduceImpl();
-		mr.readFile(FILE_TO_READ_SMALLER);
-		//mr.readFile(FILE_TO_READ_HUGE);
+		//mr.readFile(FILE_TO_READ_REALLY_SMALL);
+		mr.readFile(FILE_TO_READ_HUGE);
 
 	}
 
@@ -29,8 +30,8 @@ public class MapReduceTest {
 	public void testSimpleSorting() {
 		long c = stat();
 		Map<String, Integer> map = mr.simpleWordCounting();
-		System.out.print("s, ms:" + stat(c) + "\t");
-		//mr.displayMap(mr.sortMap(map), 3);
+		System.out.println("s, ms:" + stat(c));
+		mr.displayMap(mr.sortMap(map), 3);
 	}
 
 	@Test
@@ -39,7 +40,7 @@ public class MapReduceTest {
 		long c = stat();
 		Map<String, Integer> map = mr.mapReduce();
 		System.out.println("m, ms:" + stat(c));
-		//mr.displayMap(mr.sortMap(map), 3);
+		mr.displayMap(mr.sortMap(map), 3);
 	}
 
 	private long stat() {
