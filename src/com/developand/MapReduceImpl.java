@@ -18,36 +18,27 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
 public class MapReduceImpl implements MapReduce {
-
-	String slurpedFile = new String();
-
 	private final int BUCKETS = 4;
-	ExecutorService executor = Executors.newFixedThreadPool(100);
-
+	ExecutorService executor = null;
+	
 	private final Logger log = Logger.getLogger(MapReduceImpl.class);
 
 	// no multimaps so create so weird construction
 	List<Map.Entry<String, Integer>> intermediateMap = null;
-
-	Map<String, Integer> intermidiateResult = null;
+	List<String> words = new ArrayList<String>();
 
 	@Override
 	public Map<String, Integer> mapReduce() {
 
+		executor = Executors.newFixedThreadPool(BUCKETS);
+
 		intermediateMap = new ArrayList<Map.Entry<String, Integer>>();
 
-		List<Object[]> buckets = divideIntoBuckets(slurpedFile, BUCKETS - 1);
-
+		List<Object[]> buckets = divideIntoBuckets(BUCKETS - 1);
 		for (final Object[] bucket : buckets)
 			executor.execute(new Mapper(bucket));
 
 		executor.shutdown();
-		// try {
-		// executor.awaitTermination(10, TimeUnit.SECONDS);
-		// } catch (InterruptedException e) {
-		//
-		// log.error("just eat it");
-		// }
 		while (!executor.isTerminated()) {
 		}
 
@@ -91,11 +82,11 @@ public class MapReduceImpl implements MapReduce {
 	 * @param bucketSize
 	 * @return
 	 */
-	private List<Object[]> divideIntoBuckets(String toDivide, int bucketSize) {
+	private List<Object[]> divideIntoBuckets(int bucketSize) {
 
 		log.info("start bucketing");
 
-		String[] tokens = toDivide.split(" ");
+		Object[] tokens = words.toArray();
 
 		int chunk = tokens.length / bucketSize;
 
@@ -114,7 +105,7 @@ public class MapReduceImpl implements MapReduce {
 		for (int i = 0; i < tokens.length; i++) {
 
 			if (subTokenPosition < chunk) {
-				subTokenList.add(tokens[i]);
+				subTokenList.add(tokens[i].toString());
 				subTokenPosition++;
 			} else {
 				// System.out.println(subTokenPosition);
@@ -130,7 +121,8 @@ public class MapReduceImpl implements MapReduce {
 		// add rest
 		String[] subTokensRest = new String[rem];
 		for (int rest = 0; rest < rem; rest++) {
-			subTokensRest[rest] = tokens[(tokens.length - 1) - (rest)];
+			subTokensRest[rest] = tokens[(tokens.length - 1) - (rest)]
+					.toString();
 		}
 
 		list.add(subTokensRest);
@@ -143,17 +135,17 @@ public class MapReduceImpl implements MapReduce {
 	@Override
 	public Map<String, Integer> simpleWordCounting() {
 
-		String[] tokens = slurpedFile.split(" ");
+		Object[] tokens = words.toArray();
 		// log.info("all tokens: " + tokens.length);
 		Map<String, Integer> wordOccurence = new HashMap<String, Integer>();
 
-		for (String token : tokens) {
+		for (Object token : tokens) {
 			if (wordOccurence.containsKey(token)) {
 				Integer occured = (wordOccurence.get(token));
 				occured++;
-				wordOccurence.put(token, occured++);
+				wordOccurence.put(token.toString(), occured++);
 			} else {
-				wordOccurence.put(token, 1);
+				wordOccurence.put(token.toString(), 1);
 			}
 		}
 
@@ -198,16 +190,14 @@ public class MapReduceImpl implements MapReduce {
 			File file = new File(pathToFile);
 
 			Scanner scan = new Scanner(file);
-			StringBuffer buf = new StringBuffer();
 			while (scan.hasNext()) {
 
 				String word = scan.next();
 				word = sanitizeString(word);
 
-				buf.append(word + " ");
+				words.add(word);
 			}
 
-			slurpedFile = buf.toString();
 			log.info("file succesfully read");
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block

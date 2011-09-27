@@ -7,7 +7,6 @@ import java.util.Map;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -26,8 +25,9 @@ public class MapReduceTest {
 	public static void setUpBeforeClass() throws Exception {
 		Logger.getRootLogger().setLevel(Level.ERROR);
 		mr = new MapReduceImpl();
-		//mr.readFile(FILE_TO_READ_REALLY_SMALL);
+		//mr.readFile(FILE_TO_READ_SMALLER);
 		mr.readFile(FILE_TO_READ_HUGE);
+		//mr.readFile(FILE_TO_READ_REALLY_SMALL);
 
 	}
 
@@ -59,7 +59,7 @@ public class MapReduceTest {
 	@Parameterized.Parameters
 	public static List<Object[]> data() {
 		// first parameter - times run
-		return Arrays.asList(new Object[1][0]);
+		return Arrays.asList(new Object[3][0]);
 	}
 
 	public MapReduceTest() {
