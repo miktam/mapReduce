@@ -18,50 +18,55 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
 public class MapReduceImpl implements MapReduce {
-	private final int BUCKETS = 4;
+	private final int BUCKETS;
 	ExecutorService executor = null;
-	
+
 	private final Logger log = Logger.getLogger(MapReduceImpl.class);
 
 	// no multimaps so create so weird construction
-	List<Map.Entry<String, Integer>> intermediateMap = null;
+	List<Map.Entry<Object, Integer>> intermediateMap = null;
 	List<String> words = new ArrayList<String>();
 
+	public MapReduceImpl(int threads) {
+		BUCKETS = threads;
+	}
+
 	@Override
-	public Map<String, Integer> mapReduce() {
+	public Map<Object, Integer> mapReduce() {
 
 		executor = Executors.newFixedThreadPool(BUCKETS);
 
-		intermediateMap = new ArrayList<Map.Entry<String, Integer>>();
+		intermediateMap = new ArrayList<Map.Entry<Object, Integer>>();
+		finalResult = new HashMap<Object, Integer>();
 
-		List<Object[]> buckets = divideIntoBuckets(BUCKETS - 1);
+		List<Object[]> buckets = divideIntoBuckets(BUCKETS);
 		for (final Object[] bucket : buckets)
-			executor.execute(new Mapper(bucket));
-
+			executor.execute(new MapAndReduce(bucket));
 		executor.shutdown();
 		while (!executor.isTerminated()) {
 		}
 
 		// reduce phase
-		Map<String, Integer> result = reduce(intermediateMap);
-		return result;
+		// Map<Object, Integer> result = reduce(intermediateMap);
+		return finalResult;
 	}
 
-	private List<Map.Entry<String, Integer>> createIntermidiateMap(
+	private List<Map.Entry<Object, Integer>> createIntermidiateMap(
 			Object[] tokens) {
-		List<Entry<String, Integer>> map = new ArrayList<Map.Entry<String, Integer>>();
+		List<Entry<Object, Integer>> map = new ArrayList<Map.Entry<Object, Integer>>();
 		for (Object token : tokens) {
-			map.add(new AbstractMap.SimpleEntry<String, Integer>(token
+			map.add(new AbstractMap.SimpleEntry<Object, Integer>(token
 					.toString(), 1));
 		}
 
 		return map;
 	}
 
-	private Map<String, Integer> reduce(List<Map.Entry<String, Integer>> list) {
-		log.info("start reduce");
-		Map<String, Integer> output = new HashMap<String, Integer>();
-		for (Map.Entry<String, Integer> pair : list) {
+	private Map<Object, Integer> reduce(
+			List<Entry<Object, Integer>> intermediateMap2) {
+		log.debug("start reduce");
+		Map<Object, Integer> output = new HashMap<Object, Integer>();
+		for (Map.Entry<Object, Integer> pair : intermediateMap2) {
 			if (output.containsKey(pair.getKey())) {
 				// need to refresh value - do not use value from pair - it is
 				// always has value = 1
@@ -71,7 +76,7 @@ public class MapReduceImpl implements MapReduce {
 			}
 		}
 
-		log.info("finish reduce");
+		log.debug("finish reduce");
 		return output;
 	}
 
@@ -107,10 +112,19 @@ public class MapReduceImpl implements MapReduce {
 			if (subTokenPosition < chunk) {
 				subTokenList.add(tokens[i].toString());
 				subTokenPosition++;
+
+				// brilliant architecture: if bucket size == 1, add and rest in
+				// peace
+				if (subTokenPosition == tokens.length) {
+					list.add(subTokenList.toArray());
+					break;
+				}
 			} else {
 				// System.out.println(subTokenPosition);
 				subTokenPosition = 0;
+
 				list.add(subTokenList.toArray());
+
 				subTokenList = new ArrayList<String>();
 
 				// rewind i
@@ -118,16 +132,18 @@ public class MapReduceImpl implements MapReduce {
 			}
 		}
 
-		// add rest
-		String[] subTokensRest = new String[rem];
-		for (int rest = 0; rest < rem; rest++) {
-			subTokensRest[rest] = tokens[(tokens.length - 1) - (rest)]
-					.toString();
+		if (bucketSize > 2) {
+			// add rest
+			String[] subTokensRest = new String[rem];
+			for (int rest = 0; rest < rem; rest++) {
+				subTokensRest[rest] = tokens[(tokens.length - 1) - (rest)]
+						.toString();
+			}
+
+			list.add(subTokensRest);
 		}
 
-		list.add(subTokensRest);
-
-		log.info("finish bucketing");
+		log.info("finish bucketing, buckets: " + list.size());
 
 		return list;
 	}
@@ -152,15 +168,15 @@ public class MapReduceImpl implements MapReduce {
 		return wordOccurence;
 	}
 
-	private class MapByValueComparator implements Comparator<String> {
-		private Map<String, Integer> map;
+	private class MapByValueComparator implements Comparator<Object> {
+		private Map<Object, Integer> map;
 
-		public MapByValueComparator(Map<String, Integer> map) {
+		public MapByValueComparator(Map<Object, Integer> map) {
 			this.map = map;
 		}
 
 		@Override
-		public int compare(String key1, String key2) {
+		public int compare(Object key1, Object key2) {
 			int value1 = map.get(key1);
 			int value2 = map.get(key2);
 
@@ -173,9 +189,9 @@ public class MapReduceImpl implements MapReduce {
 	}
 
 	@Override
-	public Map<String, Integer> sortMap(Map<String, Integer> mapToSort) {
+	public Map<Object, Integer> sortMap(Map<Object, Integer> mapToSort) {
 		// sort descending by values
-		Map<String, Integer> sortedMap = new TreeMap<String, Integer>(
+		Map<Object, Integer> sortedMap = new TreeMap<Object, Integer>(
 				new MapByValueComparator(mapToSort));
 		sortedMap.putAll(mapToSort);
 		return sortedMap;
@@ -220,14 +236,58 @@ public class MapReduceImpl implements MapReduce {
 	}
 
 	@Override
-	public void displayMap(Map<String, Integer> map, int values) {
+	public void displayMap(Map<Object, Integer> map, int values) {
 
 		log.info("---\n display map of size: " + map.size());
-		for (Map.Entry<String, Integer> pair : map.entrySet()) {
+		for (Map.Entry<Object, Integer> pair : map.entrySet()) {
 			if (values-- > 0)
 				log.info(pair.getKey() + " -> " + pair.getValue());
 		}
 	}
+
+	Map<Object, Integer> finalResult;
+
+	class MapAndReduce implements Runnable {
+
+		private Object[] bucket;
+
+		MapAndReduce(Object[] bucket) {
+			this.bucket = bucket;
+
+		}
+
+		@Override
+		public void run() {
+
+			log.info("A + start map of bucket " + bucket[0]);
+			List<Map.Entry<Object, Integer>> map = createIntermidiateMap(bucket);
+			log.info("A - finished map " + bucket[0] + " with map size = "
+					+ map.size());
+
+			log.info("B + start reduce of " + bucket[0]);
+			Map<Object, Integer> result = reduce(map);
+			log.info("B - finished reduce of " + bucket[0] + " with "
+					+ result.size());
+
+			log.info("C + final map size before:: " + finalResult.size());
+			synchronized (finalResult) {
+
+				for (Entry<Object, Integer> entry : result.entrySet()) {
+
+					if (finalResult.containsKey(entry.getKey())) {
+						finalResult.put(
+								entry.getKey(),
+								finalResult.get(entry.getKey())
+										+ entry.getValue());
+					} else
+						finalResult.put(entry.getKey(), entry.getValue());
+				}
+			}
+
+			log.info("C - finalResult after " + finalResult.size());
+
+		}
+	};
 
 	class Mapper implements Runnable {
 
@@ -241,7 +301,7 @@ public class MapReduceImpl implements MapReduce {
 		public void run() {
 
 			log.info("start " + bucket[0]);
-			List<Map.Entry<String, Integer>> map = createIntermidiateMap(bucket);
+			List<Map.Entry<Object, Integer>> map = createIntermidiateMap(bucket);
 			synchronized (intermediateMap) {
 				intermediateMap.addAll(map);
 			}
