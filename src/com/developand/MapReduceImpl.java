@@ -21,15 +21,11 @@ public class MapReduceImpl implements MapReduce {
 	private final int BUCKETS;
 	ExecutorService executor = null;
 	Map<Object, Integer> finalResult;
-
 	private final Logger log = Logger.getLogger(MapReduceImpl.class);
-
-	// List<Object> words = new ArrayList<Object>();
 
 	public MapReduceImpl(int threads) {
 		BasicConfigurator.configure();
 		BUCKETS = threads;
-
 	}
 
 	@Override
@@ -87,19 +83,12 @@ public class MapReduceImpl implements MapReduce {
 		log.info("start bucketing");
 
 		Object[] tokens = words.toArray();
-
 		int chunk = tokens.length / bucketSize;
-
-		// System.out.println("all elements: " + tokens.length + " chunk = " +
-		// chunk);
-
-		// System.out.println("chunk*bucketsize=" + chunk*bucketSize);
 		int rem = tokens.length % chunk;
 
 		List<Object[]> list = new ArrayList<Object[]>();
 
 		int subTokenPosition = 0;
-
 		List<String> subTokenList = new ArrayList<String>();
 
 		for (int i = 0; i < tokens.length; i++) {
@@ -115,13 +104,10 @@ public class MapReduceImpl implements MapReduce {
 					break;
 				}
 			} else {
-				// System.out.println(subTokenPosition);
+
 				subTokenPosition = 0;
-
 				list.add(subTokenList.toArray());
-
 				subTokenList = new ArrayList<String>();
-
 				// rewind i
 				i--;
 			}
@@ -134,9 +120,9 @@ public class MapReduceImpl implements MapReduce {
 				subTokensRest[rest] = tokens[(tokens.length - 1) - (rest)]
 						.toString();
 			}
-			
+
 			// do not add if no elements found for rest
-			if (subTokensRest.length>0)
+			if (subTokensRest.length > 0)
 				list.add(subTokensRest);
 		}
 
@@ -149,7 +135,6 @@ public class MapReduceImpl implements MapReduce {
 	public Map<String, Integer> simpleWordCounting(List<Object> words) {
 
 		Object[] tokens = words.toArray();
-		// log.info("all tokens: " + tokens.length);
 		Map<String, Integer> wordOccurence = new HashMap<String, Integer>();
 
 		for (Object token : tokens) {
