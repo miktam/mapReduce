@@ -20,34 +20,29 @@ import org.apache.log4j.Logger;
 public class MapReduceImpl implements MapReduce {
 	private final int BUCKETS;
 	ExecutorService executor = null;
+	Map<Object, Integer> finalResult;
 
 	private final Logger log = Logger.getLogger(MapReduceImpl.class);
 
-	// no multimaps so create so weird construction
-	List<Map.Entry<Object, Integer>> intermediateMap = null;
-	List<String> words = new ArrayList<String>();
+	// List<Object> words = new ArrayList<Object>();
 
 	public MapReduceImpl(int threads) {
+		BasicConfigurator.configure();
 		BUCKETS = threads;
+
 	}
 
 	@Override
-	public Map<Object, Integer> mapReduce() {
-
+	public Map<Object, Integer> mapReduce(List<Object> data) {
 		executor = Executors.newFixedThreadPool(BUCKETS);
-
-		intermediateMap = new ArrayList<Map.Entry<Object, Integer>>();
 		finalResult = new HashMap<Object, Integer>();
-
-		List<Object[]> buckets = divideIntoBuckets(BUCKETS);
+		List<Object[]> buckets = divideIntoBuckets(BUCKETS, data);
 		for (final Object[] bucket : buckets)
 			executor.execute(new MapAndReduce(bucket));
 		executor.shutdown();
 		while (!executor.isTerminated()) {
 		}
 
-		// reduce phase
-		// Map<Object, Integer> result = reduce(intermediateMap);
 		return finalResult;
 	}
 
@@ -87,7 +82,7 @@ public class MapReduceImpl implements MapReduce {
 	 * @param bucketSize
 	 * @return
 	 */
-	private List<Object[]> divideIntoBuckets(int bucketSize) {
+	private List<Object[]> divideIntoBuckets(int bucketSize, List<Object> words) {
 
 		log.info("start bucketing");
 
@@ -139,8 +134,10 @@ public class MapReduceImpl implements MapReduce {
 				subTokensRest[rest] = tokens[(tokens.length - 1) - (rest)]
 						.toString();
 			}
-
-			list.add(subTokensRest);
+			
+			// do not add if no elements found for rest
+			if (subTokensRest.length>0)
+				list.add(subTokensRest);
 		}
 
 		log.info("finish bucketing, buckets: " + list.size());
@@ -149,7 +146,7 @@ public class MapReduceImpl implements MapReduce {
 	}
 
 	@Override
-	public Map<String, Integer> simpleWordCounting() {
+	public Map<String, Integer> simpleWordCounting(List<Object> words) {
 
 		Object[] tokens = words.toArray();
 		// log.info("all tokens: " + tokens.length);
@@ -198,9 +195,9 @@ public class MapReduceImpl implements MapReduce {
 	}
 
 	@Override
-	public void readFile(String pathToFile) {
+	public List<Object> readFile(String pathToFile) {
 
-		BasicConfigurator.configure();
+		List<Object> words = new ArrayList<Object>();
 		try {
 			log.info("read file:" + pathToFile);
 			File file = new File(pathToFile);
@@ -215,11 +212,12 @@ public class MapReduceImpl implements MapReduce {
 			}
 
 			log.info("file succesfully read");
+
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
+			log.error(e.getMessage());
 			e.printStackTrace();
 		}
-
+		return words;
 	}
 
 	private String sanitizeString(String input) {
@@ -244,8 +242,6 @@ public class MapReduceImpl implements MapReduce {
 				log.info(pair.getKey() + " -> " + pair.getValue());
 		}
 	}
-
-	Map<Object, Integer> finalResult;
 
 	class MapAndReduce implements Runnable {
 
@@ -289,24 +285,18 @@ public class MapReduceImpl implements MapReduce {
 		}
 	};
 
-	class Mapper implements Runnable {
+	@Override
+	public List<Object> generateData() {
+		int DATA_SIZE = 1048576;
+		List<Object> list = new ArrayList<Object>();
 
-		private Object[] bucket;
+		int min = 1;
+		int max = 1000000;
 
-		Mapper(Object[] bucket) {
-			this.bucket = bucket;
+		for (int i = 0; i < DATA_SIZE; i++) {
+			list.add(min + (int) (Math.random() * ((max - min) + 1)));
 		}
 
-		@Override
-		public void run() {
-
-			log.info("start " + bucket[0]);
-			List<Map.Entry<Object, Integer>> map = createIntermidiateMap(bucket);
-			synchronized (intermediateMap) {
-				intermediateMap.addAll(map);
-			}
-
-			log.info("finished " + bucket[0] + "\n");
-		}
+		return list;
 	};
 }
